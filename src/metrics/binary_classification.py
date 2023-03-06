@@ -42,21 +42,26 @@ def recall_score(y_true, y_pred):
     return tp / (fn + tp)
 
 
-def roc_curve(y_true, y_proba):
+def roc_curve(y_true, y_proba, partitions=100):
     tpr, fpr = [], []
-    thresholds = np.linspace(0, 1, 1000)
+    thresholds = np.linspace(0, 1, partitions)
 
     for threshold in thresholds:
         y_pred = np.where(y_proba >= threshold, 1, 0)
-        confusion_matrix = ConfusionMatrix(y_true, y_pred)
-        tn, fp, fn, tp = confusion_matrix.get_flatten()
+        tn, fp, fn, tp = ConfusionMatrix(y_true, y_pred).get_flatten()
         tpr.append(tp / (tp + fn))
         fpr.append(fp / (fp + tn))
+
     return fpr, tpr, thresholds
 
 
 def auc(x, y):
-    s = 0
+    area = 0
     for i in range(1, len(x)):
-        s += 0.5 * (x[i] - x[i - 1]) * (y[i] + y[i - 1])
-    return abs(s)
+        area += ((y[i - 1] + y[i]) * (x[i] - x[i - 1])) / 2
+    return abs(area)
+
+
+def roc_auc_score(y_true, y_proba):
+    fpr, tpr, _ = roc_curve(y_true, y_proba, 10000)
+    return auc(fpr, tpr)

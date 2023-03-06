@@ -18,14 +18,10 @@ class TestMetrics:
 
     def test_binary_classification(self):
         y_true, y_pred = np.array([0, 1, 1, 0, 0, 1, 1, 0, 0, 0]), np.array([0, 1, 1, 0, 0, 1, 0, 1, 0, 1])
-        assert isclose(skmetrics.f1_score(y_true, y_pred),
-                       metrics.f1_score(y_true, y_pred))
-        assert isclose(skmetrics.accuracy_score(y_true, y_pred),
-                       metrics.accuracy_score(y_true, y_pred))
-        assert isclose(skmetrics.precision_score(y_true, y_pred),
-                       metrics.precision_score(y_true, y_pred))
-        assert isclose(skmetrics.recall_score(y_true, y_pred),
-                       metrics.recall_score(y_true, y_pred))
+        assert isclose(skmetrics.f1_score(y_true, y_pred), metrics.f1_score(y_true, y_pred))
+        assert isclose(skmetrics.accuracy_score(y_true, y_pred), metrics.accuracy_score(y_true, y_pred))
+        assert isclose(skmetrics.precision_score(y_true, y_pred), metrics.precision_score(y_true, y_pred))
+        assert isclose(skmetrics.recall_score(y_true, y_pred), metrics.recall_score(y_true, y_pred))
 
         y_proba = np.array(list((randint(0, 1) / randint(1, 100) for _ in range(len(y_true)))))
         x, y, th = metrics.roc_curve(y_true, y_proba, 10000)

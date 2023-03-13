@@ -10,6 +10,7 @@ from sklearn import datasets
 from sklearn.model_selection import train_test_split
 
 import numpy as np
+import pandas as pd
 from math import isclose
 from random import randint
 
@@ -33,31 +34,27 @@ class TestMetrics:
 class TestModels:
 
     def test_dummy_classifier(self):
-        X, y = datasets.load_iris(return_X_y=True)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
-        classes = np.unique(y_train)
-        weights = [0.33, 0.33, 0.33]
+        X = pd.read_csv('../../static/datasets/modified/bin_classification/train_data.csv')
+        y = pd.read_csv('../../static/datasets/modified/bin_classification/train_data.csv')
+        y = y.label.to_list()
+        classes = np.unique(X.label.to_list())
 
-        skclf = skDummyClassifier(strategy='uniform')
-        skclf.fit(X_train, y_train)
-        clf = baselines.DummyClassifier(classes, weights)
-        skclf.fit(X_train, y_train)
+        w = X.label.value_counts().tolist()
+        w = np.array(w) / sum(w)
 
-        # assert (isclose(skmetrics.f1_score(y_test, clf.predict(n_predictions=len(X_test)), average="weighted"),
-        #                 skmetrics.f1_score(y_test, skclf.predict(X_test), average="weighted")))
+        clf = baselines.DummyClassifier(classes, weights=w)
+        y_pred = clf.predict(len(y))
 
-        print(skmetrics.f1_score(y_test, clf.predict(n_predictions=len(X_test)), average="weighted"),
-              skmetrics.f1_score(y_test, skclf.predict(X_test), average="weighted"))
+        print(skmetrics.f1_score(y_true=y, y_pred=y_pred))
+        print(skmetrics.accuracy_score(y_true=y, y_pred=y_pred))
+        print(skmetrics.recall_score(y_true=y, y_pred=y_pred))
 
-        skclf = skDummyClassifier(strategy='stratified')
-        skclf.fit(X_train, y_train)
         clf = baselines.DummyClassifier(classes)
+        y_pred = clf.predict(len(y))
 
-        # assert (isclose(skmetrics.f1_score(y_test, clf.predict(n_predictions=len(X_test)), average="weighted"),
-        #                 skmetrics.f1_score(y_test, skclf.predict(X_test), average="weighted")))
-
-        print(skmetrics.f1_score(y_test, clf.predict(n_predictions=len(X_test)), average="weighted"),
-              skmetrics.f1_score(y_test, skclf.predict(X_test), average="weighted"))
+        print(skmetrics.f1_score(y_true=y, y_pred=y_pred))
+        print(skmetrics.accuracy_score(y_true=y, y_pred=y_pred))
+        print(skmetrics.recall_score(y_true=y, y_pred=y_pred))
 
     def test_naive_bayes_classifier(self):
         dataset = datasets.load_iris()
@@ -75,3 +72,5 @@ class TestModels:
 
         # assert isclose(skmetrics.f1_score(test_labels, mnb.predict(test_feature_matrix), average='weighted'),
         #                skmetrics.f1_score(test_labels, nbclf.predict(test_feature_matrix), average='weighted'))
+
+# %%

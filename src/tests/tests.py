@@ -72,5 +72,3 @@ class TestModels:
 
         # assert isclose(skmetrics.f1_score(test_labels, mnb.predict(test_feature_matrix), average='weighted'),
         #                skmetrics.f1_score(test_labels, nbclf.predict(test_feature_matrix), average='weighted'))
-
-# %%

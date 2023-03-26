@@ -30,7 +30,7 @@ class NaiveBayesClassifier:
             self.class_probability[label] = current_label_feature_matrix.size / train_feature_matrix.size
             self.distributions[label] = []
             for feature_ind in range(train_feature_matrix.shape[1]):
-                feature_column = current_label_feature_matrix[feature_ind]  # выбираем фичу с номером feature_ind
+                feature_column = current_label_feature_matrix.iloc[:, feature_ind]  # выбираем фичу с номером feature_ind
                 distribution = scipy.stats.gaussian_kde(
                     feature_column)  # считаем плотность распределения P(x_feature_ind | label) с помощью gaussian_kde
                 self.distributions[label].append(distribution)

@@ -18,7 +18,6 @@ class DummyClassifier:
 
 class NaiveBayesClassifier:
     def __init__(self):
-        # self.distributions = {}  # key: label, value: []
         # [i] - плотность распределения i-й фичи в X при условии, что класс = label, т.е. плотность распределения P(x_i | label))
         self.class_probability = {}  # здесь будем хранить долю каждого класса в выборке
         self.unique_labels = None
@@ -28,11 +27,6 @@ class NaiveBayesClassifier:
         for label in self.unique_labels:
             current_label_feature_matrix = train_feature_matrix[train_labels == label]  # выбираем те строки, для которых класс = label
             self.class_probability[label] = current_label_feature_matrix.size / train_feature_matrix.size
-            # self.distributions[label] = []
-            # for feature_ind in range(train_feature_matrix.shape[1]):
-            #     # feature_column = current_label_feature_matrix.iloc[:, feature_ind]  # выбираем фичу с номером feature_ind
-            #     distribution = scipy.stats.norm()  # считаем плотность распределения P(x_feature_ind | label) с помощью gaussian_kde
-            #     self.distributions[label].append(distribution)
 
     def predict(self, test_feature_matrix):
         y_pred = []  # наши предсказания
@@ -48,22 +42,6 @@ class NaiveBayesClassifier:
                     predict = label
             y_pred.append(predict)
         return y_pred
-
-
-def filter_data(key, data, target_name=None):
-    if target_name is None:
-        return data.iloc[-1].where(data.iloc[-1] == key, 1, 0, inplace=True)
-    else:
-        return data[target_name].where(data[target_name] == key, 1, 0, inplace=True)
-
-
-def take_subsample(classes, data, target_name=None):
-    if target_name is None:
-        data = data[data.iloc[-1] == classes[0] or data.iloc[-1] == classes[1]]
-        return data.where(data.iloc[-1] == classes[0], 0, 1)
-    else:
-        data = data[data[target_name] == classes[0] or data[target_name] == classes[1]]
-        return data.where(data[target_name] == classes[0], 0, 1)
 
 
 class BinaryClassifier(ABC):
@@ -86,13 +64,29 @@ class MulticlassClassifier:
         self.classes = None
         self.subsamples = None
 
+    @staticmethod
+    def filter_data(key, data, target_name=None):
+        if target_name is None:
+            return data.iloc[-1].where(data.iloc[-1] == key, 1, 0, inplace=True)
+        else:
+            return data[target_name].where(data[target_name] == key, 1, 0, inplace=True)
+
+    @staticmethod
+    def take_subsample(classes, data, target_name=None):
+        if target_name is None:
+            data = data[data.iloc[-1] == classes[0] or data.iloc[-1] == classes[1]]
+            return data.where(data.iloc[-1] == classes[0], 0, 1)
+        else:
+            data = data[data[target_name] == classes[0] or data[target_name] == classes[1]]
+            return data.where(data[target_name] == classes[0], 0, 1)
+
     def fit(self, X, y):
         self.classes = np.unique(y)
 
         if self.mode == self.strategies[0]:
             self.classifiers *= len(self.classes)
             for i in range(len(self.classes)):
-                data = filter_data(self.classes[i], X.copy())
+                data = MulticlassClassifier.filter_data(self.classes[i], X.copy())
                 X, y = data[:-1], data[-1]
                 self.classifiers[i].fit(X=X, y=y)
 
@@ -104,10 +98,29 @@ class MulticlassClassifier:
             for i in range(len(self.classes)):
                 for j in range(i + 1, len(self.classes)):
                     self.subsamples.append((i, j))
-                    data = take_subsample((i, j), X.copy())
+                    data = MulticlassClassifier.take_subsample((i, j), X.copy())
                     X, y = data[:-1], data[-1]
                     self.classifiers[cur_cls].fit(X=X, y=y)
                     cur_cls += 1
+
+    def _voting_of_classifiers(self, predictions, y_pred):
+        for index, row in predictions.iterrows():
+            classes = [0] * len(self.classes)
+            lead_cls = 0
+            for i in range(1, len(row)):
+                classes[row[i]] += 1
+                if classes[row[i]] > classes[lead_cls]:
+                    lead_cls = row[i]
+            y_pred[index] = lead_cls
+
+    @staticmethod
+    def _most_likely_class(y_proba, y_pred):
+        for index, row in y_proba.iterrows():
+            max_p = 0
+            for cls in range(1, len(row)):
+                if row[cls] > max_p:
+                    max_p = row[cls]
+                    y_pred[index] = cls
 
     def predict(self, X, threshold=0.5):
         y_pred = [None] * len(X)
@@ -132,24 +145,3 @@ class MulticlassClassifier:
             self._voting_of_classifiers(predictions, y_pred)
 
         return y_pred
-
-    def _voting_of_classifiers(self, predictions, y_pred):
-        for index, row in predictions.iterrows():
-            classes = [0] * len(self.classes)
-            lead_cls = 0
-            for i in range(1, len(row)):
-                classes[row[i]] += 1
-                if classes[row[i]] > classes[lead_cls]:
-                    lead_cls = row[i]
-            y_pred[index] = lead_cls
-
-    @staticmethod
-    def _most_likely_class(y_proba, y_pred):
-        for index, row in y_proba.iterrows():
-            max_p = 0
-            for cls in range(1, len(row)):
-                if row[cls] > max_p:
-                    max_p = row[cls]
-                    y_pred[index] = cls
-
-#%%

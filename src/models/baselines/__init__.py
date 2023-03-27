@@ -21,8 +21,9 @@ class DummyClassifier:
         self.classes = np.unique(y)
         self.weights = DummyClassifier.get_weights(y) if weights is None else weights
 
-    def predict(self, n_predictions=1):
-        return choices(self.classes, weights=self.weights, k=n_predictions)
+    def predict(self, X):
+        k = len(X)
+        return choices(self.classes, weights=self.weights, k=k)
 
 
 class NaiveBayesClassifier:

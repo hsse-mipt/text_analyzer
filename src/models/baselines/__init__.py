@@ -66,9 +66,8 @@ class MulticlassClassifier:
     strategies = ["one-vs-all", "all-vs-all"]
 
     def __init__(self, binary_classifier=BinaryClassifier, mode=None):
-        self.bin_clf = binary_classifier
         self.mode = mode
-        self.classifiers = [self.bin_clf]
+        self.classifiers = [binary_classifier]
         self.classes = None
         self.subsamples = None
 

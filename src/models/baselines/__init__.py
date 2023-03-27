@@ -8,9 +8,18 @@ from tqdm import tqdm
 
 
 class DummyClassifier:
-    def __init__(self, classes, weights=None):
-        self.classes = classes
-        self.weights = weights
+    def __init__(self):
+        self.classes = []
+        self.weights = []
+
+    @staticmethod
+    def get_weights(y):
+        occurrences = np.array(y.value_counts().tolist())
+        return occurrences / np.sum(occurrences)
+
+    def fit(self, y, weights=None):
+        self.classes = np.unique(y)
+        self.weights = DummyClassifier.get_weights(y) if weights is None else weights
 
     def predict(self, n_predictions=1):
         return choices(self.classes, weights=self.weights, k=n_predictions)
@@ -18,7 +27,6 @@ class DummyClassifier:
 
 class NaiveBayesClassifier:
     def __init__(self):
-        # [i] - плотность распределения i-й фичи в X при условии, что класс = label, т.е. плотность распределения P(x_i | label))
         self.class_probability = {}  # здесь будем хранить долю каждого класса в выборке
         self.unique_labels = None
 

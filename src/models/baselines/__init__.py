@@ -79,7 +79,7 @@ class MulticlassClassifier:
 
     @staticmethod
     def take_subsample(classes, data):
-        data = data[(data.iloc[:, -1:] == classes[0]) | (data.iloc[:, -1:] == classes[1])]
+        data = data[data['label'].isin(classes)]    #TODO make via indexes, not col_name
         target = data.iloc[:, -1:].apply(lambda x: x == classes[1]).astype(int)
         return pd.concat([data.iloc[:, :-1], target], axis=1)
 

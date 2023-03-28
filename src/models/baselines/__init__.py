@@ -17,7 +17,7 @@ class DummyClassifier:
         occurrences = np.array(y.value_counts().tolist())
         return occurrences / np.sum(occurrences)
 
-    def fit(self, y, weights=None):
+    def fit(self, X, y, weights=None):
         self.classes = np.unique(y)
         self.weights = DummyClassifier.get_weights(y) if weights is None else weights
 
@@ -67,65 +67,57 @@ class MulticlassClassifier:
 
     def __init__(self, binary_classifier=BinaryClassifier, mode=None):
         self.mode = mode
-        self.classifiers = [binary_classifier]
-        self.classes = None
-        self.subsamples = None
+        self.clf = binary_classifier
+        self.classes = []
+        self.sub_samples = []
+        self.classifiers = []
 
     @staticmethod
-    def filter_data(key, data, target_name=None):
-        if target_name is None:
-            return data.iloc[:, -1].where(data.iloc[:, -1] == key, 1, 0, inplace=True)
-        else:
-            return data[target_name].where(data[target_name] == key, 1, 0, inplace=True)
+    def filter_data(key, data):
+        target = data.iloc[:, -1:].apply(lambda x: x == key).astype(int)
+        return pd.concat([data.iloc[:, :-1], target], axis=1)
 
     @staticmethod
-    def take_subsample(classes, data, target_name=None):
-        if target_name is None:
-            data = data[data.iloc[:, -1] == classes[0] or data.iloc[:, -1] == classes[1]]
-            return data.where(data.iloc[:, -1] == classes[0], 0, 1)
-        else:
-            data = data[data[target_name] == classes[0] or data[target_name] == classes[1]]
-            return data.where(data[target_name] == classes[0], 0, 1)
+    def take_subsample(classes, data):
+        data = data[(data.iloc[:, -1:] == classes[0]) | (data.iloc[:, -1:] == classes[1])]
+        target = pd.Series(data.iloc[:, -1:]).replace([classes], [0, 1])
+        return pd.concat([data.iloc[:, :-1], target], axis=1)
+
+    def make_array_of_classifiers(self, n):
+        for clf_ in range(n):
+            self.classifiers.append(self.clf())
 
     def fit(self, X, y):
         self.classes = np.unique(y)
+        train_data = pd.concat([X, y], axis=1)
 
         if self.mode == self.strategies[0]:
-            self.classifiers *= len(self.classes)
+            self.make_array_of_classifiers(len(self.classes))
+
             for i in range(len(self.classes)):
-                data = MulticlassClassifier.filter_data(self.classes[i], X.copy())
-                X, y = data.iloc[:, : -1], data.iloc[:, -1]
-                self.classifiers[i].fit(X=X, y=y)
+                data = MulticlassClassifier.filter_data(self.classes[i], train_data)
+                X_train, y_train = data.iloc[:, :-1], data.iloc[:, -1:]
+                self.classifiers[i].fit(X_train, y_train)
 
         elif self.mode == self.strategies[1]:
-            num_of_classifiers = (len(self.classes) * (len(self.classes) + 1)) // 2
-            self.classifiers *= num_of_classifiers
+            self.make_array_of_classifiers((len(self.classes) * (len(self.classes) + 1)) // 2)
+
             cur_cls = 0
             for i in range(len(self.classes)):
                 for j in range(i + 1, len(self.classes)):
-                    data = MulticlassClassifier.take_subsample((i, j), X.copy())
-                    X, y = data.iloc[:, : -1], data.iloc[:, -1]
-                    self.classifiers[cur_cls].fit(X=X, y=y)
+                    data = MulticlassClassifier.take_subsample((i, j), train_data)
+                    X_train, y_train = data.iloc[:, :-1], data.iloc[:, -1:]
+                    self.classifiers[cur_cls].fit(X_train, y_train)
                     cur_cls += 1
-
-    def _voting_of_classifiers(self, predictions, y_pred):
-        for index, row in predictions.iterrows():
-            classes = [0] * len(self.classes)
-            lead_cls = 0
-            for i in range(1, len(row)):
-                classes[row[i]] += 1
-                if classes[row[i]] > classes[lead_cls]:
-                    lead_cls = row[i]
-            y_pred[index] = lead_cls
 
     @staticmethod
     def _most_likely_class(y_proba, y_pred):
-        for index, row in y_proba.iterrows():
-            max_p = 0
-            for cls in range(1, len(row)):
-                if row[cls] > max_p:
-                    max_p = row[cls]
-                    y_pred[index] = cls
+        for i, proba in y_proba.iterrows():
+            max_proba = 0
+            for y_i in range(len(proba)):
+                if proba[y_i] >= max_proba:
+                    max_proba = proba[y_i]
+                    y_pred[i] = y_i
 
     def predict(self, X, threshold=0.5):
         y_pred = [None] * len(X)
@@ -134,19 +126,35 @@ class MulticlassClassifier:
             y_proba = pd.DataFrame({'proba': [None] * len(X)})
 
             for cls in range(len(self.classifiers)):
-                proba = pd.DataFrame({'class': self.classifiers[cls].predict(X=X)})
+                proba = pd.DataFrame({'class': self.classifiers[cls].predict(X)})
                 y_proba = pd.concat([y_proba, proba], axis=1)
 
-            self._most_likely_class(y_proba, y_pred)
+            y_proba.drop(columns=['proba'], inplace=True)
+
+            MulticlassClassifier._most_likely_class(y_proba, y_pred)
 
         elif self.mode == self.strategies[1]:
             predictions = pd.DataFrame({'pred': [None] * len(X)})
 
             for k in range(len(self.classifiers)):
-                proba = self.classifiers[k].predict(X=X)
-                pred = pd.Series(np.where(proba < threshold, self.subsamples[k][0], self.subsamples[k][1]))
+                proba = self.classifiers[k].predict(X)
+                pred = pd.Series(np.where(proba < threshold,
+                                          self.sub_samples[k][0],
+                                          self.sub_samples[k][1]))
                 predictions = pd.concat([predictions, pred], axis=1)
+
+            predictions.drop(columns=['pred'], inplace=True)
 
             self._voting_of_classifiers(predictions, y_pred)
 
         return y_pred
+
+    def _voting_of_classifiers(self, predictions, y_pred):
+        for i, row in predictions.iterrows():
+            classes = [0] * len(self.classes)
+            lead_cls = 0
+            for j in range(len(row)):
+                classes[row[j]] += 1
+                if classes[row[j]] > classes[lead_cls]:
+                    lead_cls = row[j]
+            y_pred[i] = lead_cls

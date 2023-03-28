@@ -22,33 +22,32 @@ class DummyClassifier:
         self.weights = DummyClassifier.get_weights(y) if weights is None else weights
 
     def predict(self, X):
-        k = len(X)
-        return choices(self.classes, weights=self.weights, k=k)
+        return choices(self.classes, weights=self.weights, k=X.shape[0])
 
 
 class NaiveBayesClassifier:
     def __init__(self):
-        self.class_probability = {}  # здесь будем хранить долю каждого класса в выборке
-        self.unique_labels = None
+        self.class_proba = {}
+        self.unique_y = None
 
-    def fit(self, train_feature_matrix, train_labels):
-        self.unique_labels = np.unique(train_labels)
-        for label in self.unique_labels:
-            current_label_feature_matrix = train_feature_matrix[train_labels == label]  # выбираем те строки, для которых класс = label
-            self.class_probability[label] = current_label_feature_matrix.size / train_feature_matrix.size
+    def fit(self, X_train, y_train):
+        self.unique_y = np.unique(y_train)
+        for y in self.unique_y:
+            current_y_feature_matrix = X_train[y_train == y]
+            self.class_proba[y] = current_y_feature_matrix.size / X_train.size
 
     def predict(self, test_feature_matrix):
-        y_pred = []  # наши предсказания
+        y_pred = []
         predict = None
-        for i, features in tqdm(test_feature_matrix.iterrows()):
+        for row in tqdm(range(test_feature_matrix.shape[0])):
             max_likelihood = -float('inf')
-            for label in self.unique_labels:  # перебираем возможные варианты ответа, выбираем - максимально правдоподобный
-                likelihood = log(self.class_probability[label])  # сумма логарифмов вероятностей для label
-                for feature_ind in range(test_feature_matrix.shape[1]):
-                    likelihood += scipy.stats.norm.logpdf(features[feature_ind])
+            for y in self.unique_y:
+                likelihood = log(self.class_proba[y])
+                for x_i in range(test_feature_matrix.shape[1]):
+                    likelihood += scipy.stats.norm.logpdf(test_feature_matrix.iloc[row][x_i])
                 if likelihood > max_likelihood:
                     max_likelihood = likelihood
-                    predict = label
+                    predict = y
             y_pred.append(predict)
         return y_pred
 
@@ -75,15 +74,15 @@ class MulticlassClassifier:
     @staticmethod
     def filter_data(key, data, target_name=None):
         if target_name is None:
-            return data.iloc[-1].where(data.iloc[-1] == key, 1, 0, inplace=True)
+            return data.iloc[:, -1].where(data.iloc[:, -1] == key, 1, 0, inplace=True)
         else:
             return data[target_name].where(data[target_name] == key, 1, 0, inplace=True)
 
     @staticmethod
     def take_subsample(classes, data, target_name=None):
         if target_name is None:
-            data = data[data.iloc[-1] == classes[0] or data.iloc[-1] == classes[1]]
-            return data.where(data.iloc[-1] == classes[0], 0, 1)
+            data = data[data.iloc[:, -1] == classes[0] or data.iloc[:, -1] == classes[1]]
+            return data.where(data.iloc[:, -1] == classes[0], 0, 1)
         else:
             data = data[data[target_name] == classes[0] or data[target_name] == classes[1]]
             return data.where(data[target_name] == classes[0], 0, 1)
@@ -95,19 +94,17 @@ class MulticlassClassifier:
             self.classifiers *= len(self.classes)
             for i in range(len(self.classes)):
                 data = MulticlassClassifier.filter_data(self.classes[i], X.copy())
-                X, y = data[:-1], data[-1]
+                X, y = data.iloc[:, : -1], data.iloc[:, -1]
                 self.classifiers[i].fit(X=X, y=y)
 
         elif self.mode == self.strategies[1]:
             num_of_classifiers = (len(self.classes) * (len(self.classes) + 1)) // 2
             self.classifiers *= num_of_classifiers
-            self.subsamples = []
             cur_cls = 0
             for i in range(len(self.classes)):
                 for j in range(i + 1, len(self.classes)):
-                    self.subsamples.append((i, j))
                     data = MulticlassClassifier.take_subsample((i, j), X.copy())
-                    X, y = data[:-1], data[-1]
+                    X, y = data.iloc[:, : -1], data.iloc[:, -1]
                     self.classifiers[cur_cls].fit(X=X, y=y)
                     cur_cls += 1
 

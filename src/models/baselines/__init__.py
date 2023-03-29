@@ -36,19 +36,19 @@ class NaiveBayesClassifier:
             current_y_feature_matrix = X_train[y_train == y]
             self.class_proba[y] = current_y_feature_matrix.size / X_train.size
 
-    def predict(self, test_feature_matrix):
+    def predict(self, X_test):
         y_pred = []
-        predict = None
-        for row in tqdm(range(test_feature_matrix.shape[0])):
+        pred = None
+        for row in tqdm(range(X_test.shape[0])):
             max_likelihood = -float('inf')
             for y in self.unique_y:
                 likelihood = log(self.class_proba[y])
-                for x_i in range(test_feature_matrix.shape[1]):
-                    likelihood += scipy.stats.norm.logpdf(test_feature_matrix.iloc[row][x_i])
+                for x_i in range(X_test.shape[1]):
+                    likelihood += scipy.stats.norm.logpdf(X_test.iloc[row][x_i])
                 if likelihood > max_likelihood:
                     max_likelihood = likelihood
-                    predict = y
-            y_pred.append(predict)
+                    pred = y
+            y_pred.append(pred)
         return y_pred
 
 
@@ -109,7 +109,7 @@ class MulticlassClassifier:
                 self.classifiers[i].fit(X_train, y_train)
 
         elif self.mode == self.strategies[1]:
-            num_of_classifiers = (len(self.classes) * (len(self.classes) + 1)) // 2
+            num_of_classifiers = (len(self.classes) * (len(self.classes) - 1)) // 2
             self.make_array_of_classifiers(num_of_classifiers)
 
             cur_cls = 0
@@ -132,10 +132,10 @@ class MulticlassClassifier:
                     y_pred[i] = y_i
 
     def predict(self, X, threshold=0.5):
-        y_pred = [None] * len(X)
+        y_pred = [None for _ in range(len(X))]
 
         if self.mode == self.strategies[0]:
-            y_proba = pd.DataFrame({'proba': [None] * len(X)})
+            y_proba = pd.DataFrame({'proba': [None for _ in range(len(X))]})
 
             for cls in range(len(self.classifiers)):
                 proba = pd.DataFrame({'class': self.classifiers[cls].predict(X)})
@@ -146,7 +146,7 @@ class MulticlassClassifier:
             MulticlassClassifier._most_likely_class(y_proba, y_pred)
 
         elif self.mode == self.strategies[1]:
-            predictions = pd.DataFrame({'pred': [None] * len(X)})
+            predictions = pd.DataFrame({'pred': [None for _ in range(len(X))]})
 
             for k in range(len(self.classifiers)):
                 proba = pd.DataFrame({'proba': self.classifiers[k].predict(X)})

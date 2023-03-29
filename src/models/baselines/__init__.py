@@ -123,14 +123,13 @@ class MulticlassClassifier:
                     self.classifiers[cur_cls].fit(X_train, y_train)
                     cur_cls += 1
 
-    @staticmethod
-    def _most_likely_class(y_proba, y_pred):
+    def _most_likely_class(self, y_proba, y_pred):
         for i, proba in y_proba.iterrows():
             max_proba = 0
             for y_i in range(len(proba)):
                 if proba[y_i] >= max_proba:
                     max_proba = proba[y_i]
-                    y_pred[i] = y_i
+                    y_pred[i] = self.classes[y_i]
 
     def predict(self, X, threshold=0.5):
         y_pred = [None for _ in range(len(X))]
@@ -144,7 +143,7 @@ class MulticlassClassifier:
 
             y_proba.drop(columns=['proba'], inplace=True)
 
-            MulticlassClassifier._most_likely_class(y_proba, y_pred)
+            self._most_likely_class(y_proba, y_pred)
 
         elif self.mode == self.strategies[1]:
             predictions = pd.DataFrame({'pred': [None for _ in range(len(X))]})

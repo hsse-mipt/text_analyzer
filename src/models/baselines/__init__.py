@@ -73,21 +73,30 @@ class MulticlassClassifier:
         self.classifiers = []
 
     @staticmethod
-    def filter_data(key, data):
-        target = data.iloc[:, -1:].apply(lambda x: x == key).astype(int)
-        return pd.concat([data.iloc[:, :-1], target], axis=1)
+    def filter_data(key, data, target_name=None):
+        if target_name is None:
+            target = data.iloc[:, -1:].apply(lambda x: x == key).astype(int)
+            return pd.concat([data.iloc[:, :-1], target], axis=1)
+        else:
+            target = data[target_name].apply(lambda x: x == key).astype(int)
+            return pd.concat([data.drop(columns=target_name), target], axis=1)
 
     @staticmethod
-    def take_subsample(classes, data):
-        data = data[data['label'].isin(classes)]    #TODO make via indexes, not col_name
-        target = data.iloc[:, -1:].apply(lambda x: x == classes[1]).astype(int)
-        return pd.concat([data.iloc[:, :-1], target], axis=1)
+    def take_subsample(classes, data, target_name=None):
+        if target_name is None:
+            data = data[data[:, -1].isin(classes)]  #TODO this version doesn't work
+            target = data.iloc[:, -1:].apply(lambda x: x == classes[1]).astype(int)
+            return pd.concat([data.iloc[:, :-1], target], axis=1)
+        else:
+            data = data[data[target_name].isin(classes)]
+            target = data[target_name].apply(lambda x: x == classes[1]).astype(int)
+            return pd.concat([data.drop(columns=target_name), target], axis=1)
 
     def make_array_of_classifiers(self, n):
         for clf_ in range(n):
             self.classifiers.append(self.clf())
 
-    def fit(self, X, y):
+    def fit(self, X, y, target_name=None):
         self.classes = np.unique(y)
         train_data = pd.concat([X, y], axis=1)
 
@@ -95,7 +104,7 @@ class MulticlassClassifier:
             self.make_array_of_classifiers(len(self.classes))
 
             for i in range(len(self.classes)):
-                data = MulticlassClassifier.filter_data(self.classes[i], train_data)
+                data = MulticlassClassifier.filter_data(self.classes[i], train_data, target_name)
                 X_train, y_train = data.iloc[:, :-1], data.iloc[:, -1:]
                 self.classifiers[i].fit(X_train, y_train)
 
@@ -104,11 +113,11 @@ class MulticlassClassifier:
             self.make_array_of_classifiers(num_of_classifiers)
 
             cur_cls = 0
-            self.sub_samples = [[None] * 2] * num_of_classifiers
+            self.sub_samples = [[None] * 2 for _ in range(num_of_classifiers)]
             for i in range(len(self.classes)):
                 for j in range(i + 1, len(self.classes)):
-                    self.sub_samples[cur_cls][0], self.sub_samples[cur_cls][1] = i, j
-                    data = MulticlassClassifier.take_subsample((i, j), train_data)
+                    self.sub_samples[cur_cls][0], self.sub_samples[cur_cls][1] = self.classes[i], self.classes[j]
+                    data = MulticlassClassifier.take_subsample((i, j), train_data, target_name)
                     X_train, y_train = data.iloc[:, :-1], data.iloc[:, -1:]
                     self.classifiers[cur_cls].fit(X_train, y_train)
                     cur_cls += 1
@@ -140,9 +149,10 @@ class MulticlassClassifier:
             predictions = pd.DataFrame({'pred': [None] * len(X)})
 
             for k in range(len(self.classifiers)):
-                proba = pd.DataFrame(self.classifiers[k].predict(X))
-                #pred = proba.apply(lambda x: self.sub_samples[k][0] if x < threshold else self.sub_samples[k][1]) TODO
-                #predictions = pd.concat([predictions, pd.DataFrame(pred)], axis=1)
+                proba = pd.DataFrame({'proba': self.classifiers[k].predict(X)})
+                proba['proba'] = np.where(proba['proba'] < threshold, self.sub_samples[k][0], self.sub_samples[k][1])
+                proba.rename(columns={'proba': f'pred_{k}'}, inplace=True)
+                predictions = pd.concat([predictions, proba[f'pred_{k}']], axis=1)
 
             predictions.drop(columns=['pred'], inplace=True)
 
@@ -152,7 +162,7 @@ class MulticlassClassifier:
 
     def _voting_of_classifiers(self, predictions, y_pred):
         for i, y in predictions.iterrows():
-            classes = [0] * len(self.classes)
+            classes = [0 for _ in range(len(self.classes))]
             lead_y = 0
             for y_i in y:
                 classes[y_i] += 1

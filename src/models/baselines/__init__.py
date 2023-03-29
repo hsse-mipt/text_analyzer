@@ -98,7 +98,7 @@ class MulticlassClassifier:
             self.classifiers.append(self.clf())
 
     def fit(self, X, y, target_name=None):
-        self.classes = np.unique(y)
+        self.classes = np.unique(y).astype(int)
         train_data = pd.concat([X, y], axis=1)
 
         if self.mode == self.strategies[0]:
@@ -118,7 +118,7 @@ class MulticlassClassifier:
             for i in range(len(self.classes)):
                 for j in range(i + 1, len(self.classes)):
                     self.sub_samples[cur_cls][0], self.sub_samples[cur_cls][1] = self.classes[i], self.classes[j]
-                    data = MulticlassClassifier.take_subsample((i, j), train_data, target_name)
+                    data = MulticlassClassifier.take_subsample((self.classes[i], self.classes[j]), train_data, target_name)
                     X_train, y_train = data.iloc[:, :-1], np.ravel(data.iloc[:, -1:])
                     self.classifiers[cur_cls].fit(X_train, y_train)
                     cur_cls += 1
@@ -131,7 +131,7 @@ class MulticlassClassifier:
                     max_proba = proba[y_i]
                     y_pred[i] = self.classes[y_i]
 
-    def predict(self, X, threshold=0.5):
+    def predict(self, X):
         y_pred = [None for _ in range(len(X))]
 
         if self.mode == self.strategies[0]:
@@ -150,7 +150,7 @@ class MulticlassClassifier:
 
             for k in range(len(self.classifiers)):
                 proba = pd.DataFrame({'proba': self.classifiers[k].predict(X)})
-                proba['proba'] = np.where(proba['proba'] < threshold, self.sub_samples[k][0], self.sub_samples[k][1]).astype(int)
+                proba = proba.applymap(lambda p: self.sub_samples[k][p])
                 proba.rename(columns={'proba': f'pred_{k}'}, inplace=True)
                 predictions = pd.concat([predictions, proba[f'pred_{k}']], axis=1)
 

@@ -84,9 +84,10 @@ class MulticlassClassifier:
     @staticmethod
     def take_subsample(classes, data, target_name=None):
         if target_name is None:
-            data = data[data[:, -1].isin(classes)]  #TODO this version doesn't work
-            target = data.iloc[:, -1:].apply(lambda x: x == classes[1]).astype(int)
-            return pd.concat([data.iloc[:, :-1], target], axis=1)
+            pass
+            #data = data[data[:, -1].isin(classes)]  TODO this version doesn't work
+            #target = data.iloc[:, -1:].apply(lambda x: x == classes[1]).astype(int)
+            #return pd.concat([data.iloc[:, :-1], target], axis=1)
         else:
             data = data[data[target_name].isin(classes)]
             target = data[target_name].apply(lambda x: x == classes[1]).astype(int)
@@ -105,7 +106,7 @@ class MulticlassClassifier:
 
             for i in range(len(self.classes)):
                 data = MulticlassClassifier.filter_data(self.classes[i], train_data, target_name)
-                X_train, y_train = data.iloc[:, :-1], data.iloc[:, -1:]
+                X_train, y_train = data.iloc[:, :-1], np.ravel(data.iloc[:, -1:])
                 self.classifiers[i].fit(X_train, y_train)
 
         elif self.mode == self.strategies[1]:
@@ -118,7 +119,7 @@ class MulticlassClassifier:
                 for j in range(i + 1, len(self.classes)):
                     self.sub_samples[cur_cls][0], self.sub_samples[cur_cls][1] = self.classes[i], self.classes[j]
                     data = MulticlassClassifier.take_subsample((i, j), train_data, target_name)
-                    X_train, y_train = data.iloc[:, :-1], data.iloc[:, -1:]
+                    X_train, y_train = data.iloc[:, :-1], np.ravel(data.iloc[:, -1:])
                     self.classifiers[cur_cls].fit(X_train, y_train)
                     cur_cls += 1
 
@@ -150,7 +151,7 @@ class MulticlassClassifier:
 
             for k in range(len(self.classifiers)):
                 proba = pd.DataFrame({'proba': self.classifiers[k].predict(X)})
-                proba['proba'] = np.where(proba['proba'] < threshold, self.sub_samples[k][0], self.sub_samples[k][1])
+                proba['proba'] = np.where(proba['proba'] < threshold, self.sub_samples[k][0], self.sub_samples[k][1]).astype(int)
                 proba.rename(columns={'proba': f'pred_{k}'}, inplace=True)
                 predictions = pd.concat([predictions, proba[f'pred_{k}']], axis=1)
 

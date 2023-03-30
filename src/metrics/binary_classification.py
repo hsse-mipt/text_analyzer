@@ -5,7 +5,7 @@ class ConfusionMatrix:
     def __init__(self, y_true=None, y_pred=None):
         self._confusion_matrix = np.array([[0, 0], [0, 0]])
         if not (y_true is None or y_pred is None):
-            self.upd(y_true, y_pred)
+            self.upd(np.asarray(y_true), np.asarray(y_pred))
 
     def upd(self, y_true, y_pred):
         for value, prediction in zip(y_true, y_pred):
@@ -56,6 +56,8 @@ def roc_curve(y_true, y_proba, partitions=100):
 
 
 def auc(x, y):
+    x = np.asarray(x)
+    y = np.asarray(y)
     area = 0
     for i in range(1, len(x)):
         area += ((y[i - 1] + y[i]) * (x[i] - x[i - 1])) / 2
@@ -63,5 +65,5 @@ def auc(x, y):
 
 
 def roc_auc_score(y_true, y_proba):
-    fpr, tpr, _ = roc_curve(y_true, y_proba, 10000)
+    fpr, tpr, _ = roc_curve(np.asarray(y_true), np.asarray(y_proba), 10000)
     return auc(fpr, tpr)

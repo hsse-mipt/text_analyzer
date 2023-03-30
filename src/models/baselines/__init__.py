@@ -9,17 +9,18 @@ from tqdm import tqdm
 
 class DummyClassifier:
     def __init__(self):
-        self.classes = []
-        self.weights = []
+        self.classes = None
+        self.weights = None
 
-    @staticmethod
-    def get_weights(y):
-        occurrences = np.array(y.value_counts().tolist())
-        return occurrences / np.sum(occurrences)
+    def get_weights(self, y) -> list:
+        occurrences = {}
+        for y_i in self.classes:
+            occurrences[y_i] = y.count(y_i) / len(y)
+        return list(occurrences.values())
 
     def fit(self, X, y, weights=None):
         self.classes = np.unique(y)
-        self.weights = DummyClassifier.get_weights(y) if weights is None else weights
+        self.weights = self.get_weights(list(y)) if weights is None else weights
 
     def predict(self, X):
         return choices(self.classes, weights=self.weights, k=X.shape[0])
@@ -84,10 +85,9 @@ class MulticlassClassifier:
     @staticmethod
     def take_subsample(classes, data, target_name=None):
         if target_name is None:
-            pass
             #data = data[data[:, -1].isin(classes)]  TODO this version doesn't work
-            #target = data.iloc[:, -1:].apply(lambda x: x == classes[1]).astype(int)
-            #return pd.concat([data.iloc[:, :-1], target], axis=1)
+            target = data.iloc[:, -1:].apply(lambda x: x == classes[1]).astype(int)
+            return pd.concat([data.iloc[:, :-1], target], axis=1)
         else:
             data = data[data[target_name].isin(classes)]
             target = data[target_name].apply(lambda x: x == classes[1]).astype(int)

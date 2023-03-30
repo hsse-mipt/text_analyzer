@@ -6,7 +6,7 @@ class MulticlassConfusionMatrix:
         self._confusion_matrix = None
         self.unique_labels = None
         if not (y_true is None or y_pred is None):
-            self.upd(y_true, y_pred)
+            self.upd(np.asarray(y_true), np.asarray(y_pred))
 
     def upd(self, y_true, y_pred):
         self.unique_labels = np.unique(np.hstack((y_true, y_pred)))

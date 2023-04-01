@@ -162,7 +162,7 @@ class MulticlassClassifier:
 
     def _voting_of_classifiers(self, predictions, y_pred):
         for i, y in predictions.iterrows():
-            classes = [0 for _ in range(len(self.classes))]
+            classes = dict((y_i, 0) for y_i in self.classes)
             lead_y = 0
             for y_i in y:
                 classes[y_i] += 1

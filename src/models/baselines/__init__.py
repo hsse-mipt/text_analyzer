@@ -54,53 +54,65 @@ class NaiveBayesClassifier:
             '''
             if deviation == 0:
                 return 1
-            return exp(-((value - mean) ** 2) / (2 * deviation ** 2)) / sqrt(2 * pi * deviation ** 2)
+            return exp(-((value - mean) ** 2) / (2 * deviation ** 2)) / sqrt(
+                2 * pi * deviation ** 2)
 
         def __str__(self):
             return str(self.distribution)
 
-    def __init__(self, mode = 'gaussian_kde'): #guassian_kde, guassian, cat_feautures
+    def __init__(self, mode='gaussian_kde'):  # guassian_kde, guassian, cat_feautures
+        self.distributions = None
+        self.class_probability = None
+        self.unique_labels = None
         self.mode = mode
-
 
     def fit(self, train_feature_matrix, train_labels):
         self.unique_labels = np.unique(train_labels)
-        self.class_probability = {} # здесь будем хранить долю каждого класса в выборке
-        self.distributions = {} # key: label, value: []
+        self.class_probability = {}  # здесь будем хранить долю каждого класса в выборке
+        self.distributions = {}  # key: label, value: []
         # [i] - плотность распределения i-й фичи в X при условии, что класс = label, т.е. плотность распределения P(x_i | label))
         for label in self.unique_labels:
-            current_label_feature_matrix = train_feature_matrix[np.array(train_labels == label)] # выбираем те строки, для которых класс = label
-            self.class_probability[label] = current_label_feature_matrix.size / train_feature_matrix.size
+            current_label_feature_matrix = train_feature_matrix[
+                np.array(train_labels == label)]  # выбираем те строки, для которых класс = label
+            self.class_probability[
+                label] = current_label_feature_matrix.size / train_feature_matrix.size
             self.distributions[label] = []
             for feature_ind in range(train_feature_matrix.shape[1]):
-                feature_column = current_label_feature_matrix.iloc[:, feature_ind] # выбираем фичу с номером feature_ind
-                distribution = self.Distribution(feature_column, self.mode)  # считаем плотность распределения P(x_feature_ind | label) с помощью gaussian_kde
+                feature_column = current_label_feature_matrix.iloc[:,
+                                 feature_ind]  # выбираем фичу с номером feature_ind
+                distribution = self.Distribution(feature_column,
+                                                 self.mode)  # считаем плотность распределения P(x_feature_ind | label) с помощью gaussian_kde
                 self.distributions[label].append(distribution)
 
     def predict(self, test_feature_matrix):
-        y_pred = [] # наши предсказания
+        y_pred = []  # наши предсказания
         for i, features in test_feature_matrix.iterrows():
             max_likelihood = -float('inf')
             max_probabilities = []
-            for label in self.unique_labels: # перебираем возможные варианты ответа, выбираем - максимально правдоподобный
-                likelihood = log(self.class_probability[label]) # здесь - сумма логарифмов вероятностей для label
+            for label in self.unique_labels:  # перебираем возможные варианты ответа, выбираем - максимально правдоподобный
+                likelihood = log(self.class_probability[
+                                     label])  # здесь - сумма логарифмов вероятностей для label
                 probabilities = [self.class_probability[label]]
                 for feature_ind in range(test_feature_matrix.shape[1]):
-                    likelihood += log(self.distributions[label][feature_ind].get_proba(float(features[feature_ind])))
-                    if self.mode == 'cat_features' and features[feature_ind] not in self.distributions[label][feature_ind].distribution.keys() or \
-                            self.distributions[label][feature_ind].get_proba(features[feature_ind]) == 0:
+                    likelihood += log(self.distributions[label][feature_ind].get_proba(
+                        float(features[feature_ind])))
+                    if self.mode == 'cat_features' and features[feature_ind] not in \
+                            self.distributions[label][feature_ind].distribution.keys() or \
+                            self.distributions[label][feature_ind].get_proba(
+                                features[feature_ind]) == 0:
                         likilihood = -float('inf')
                         probabilities.append(-float('inf'))
                     else:
-                        likelihood += log(self.distributions[label][feature_ind].get_proba(features[feature_ind]))
-                        probabilities.append(self.distributions[label][feature_ind].get_proba(features[feature_ind]))
+                        likelihood += log(
+                            self.distributions[label][feature_ind].get_proba(features[feature_ind]))
+                        probabilities.append(
+                            self.distributions[label][feature_ind].get_proba(features[feature_ind]))
                 if likelihood > max_likelihood:
                     max_likelihood = likelihood
                     max_probabilities = probabilities
                     predict = label
             y_pred.append(predict)
         return y_pred
-
 
 
 class BinaryClassifier(ABC):
@@ -135,7 +147,7 @@ class MulticlassClassifier:
     @staticmethod
     def take_subsample(classes, data, target_name=None):
         if target_name is None:
-            #data = data[data[:, -1].isin(classes)]  TODO this version doesn't work
+            # data = data[data[:, -1].isin(classes)]  TODO this version doesn't work
             target = data.iloc[:, -1:].apply(lambda x: x == classes[1]).astype(int)
             return pd.concat([data.iloc[:, :-1], target], axis=1)
         else:
@@ -167,8 +179,10 @@ class MulticlassClassifier:
             self.sub_samples = [[None] * 2 for _ in range(num_of_classifiers)]
             for i in range(len(self.classes)):
                 for j in range(i + 1, len(self.classes)):
-                    self.sub_samples[cur_cls][0], self.sub_samples[cur_cls][1] = self.classes[i], self.classes[j]
-                    data = MulticlassClassifier.take_subsample((self.classes[i], self.classes[j]), train_data, target_name)
+                    self.sub_samples[cur_cls][0], self.sub_samples[cur_cls][1] = self.classes[i], \
+                    self.classes[j]
+                    data = MulticlassClassifier.take_subsample((self.classes[i], self.classes[j]),
+                                                               train_data, target_name)
                     X_train, y_train = data.iloc[:, :-1], np.ravel(data.iloc[:, -1:])
                     self.classifiers[cur_cls].fit(X_train, y_train)
                     cur_cls += 1

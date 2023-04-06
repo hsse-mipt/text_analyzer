@@ -27,7 +27,7 @@ class NaiveBayesClassifier:
                 self.deviation = np.std(feature_column)
             if mode == 'cat_features':
                 unique, counts = np.unique(feature_column, return_counts=True)
-                self.distribution = dict(zip(unique, counts / feature_column.size)) 
+                self.distribution = dict(zip(unique, counts / feature_column.size))
         
         def get_proba(self, value: float) -> float:
             if self.mode == 'gaussian':
@@ -38,9 +38,15 @@ class NaiveBayesClassifier:
         
         @staticmethod
         def get_prob_from_gauss(self, value: float, mean: float, deviation: float) -> float:
+            '''
+            Вычисляет сложную формулу для вероятности из нормального распределения
+            '''
             if deviation == 0:
                 return 1
             return exp(-((value - mean) ** 2) / (2 * deviation ** 2)) / sqrt(2 * pi * deviation ** 2)
+        
+        def __str__(self):
+            return str(self.distribution)
     
     def __init__(self, mode = 'gaussian_kde'): #guassian_kde, guassian, cat_feautures
         self.mode = mode
@@ -64,12 +70,21 @@ class NaiveBayesClassifier:
         y_pred = [] # наши предсказания
         for i, features in test_feature_matrix.iterrows():
             max_likelihood = -float('inf')
+            max_probabilities = []
             for label in self.unique_labels: # перебираем возможные варианты ответа, выбираем - максимально правдоподобный
                 likelihood = log(self.class_probability[label]) # здесь - сумма логарифмов вероятностей для label
+                probabilities = [self.class_probability[label]]
                 for feature_ind in range(test_feature_matrix.shape[1]):
-                    likelihood += log(self.distributions[label][feature_ind].get_proba(float(features[feature_ind])))
+                    if self.mode == 'cat_features' and features[feature_ind] not in self.distributions[label][feature_ind].distribution.keys() or\
+                        self.distributions[label][feature_ind].get_proba(features[feature_ind]) == 0:
+                        likilihood = -float('inf')
+                        probabilities.append(-float('inf'))
+                    else:
+                        likelihood += log(self.distributions[label][feature_ind].get_proba(features[feature_ind]))
+                        probabilities.append(self.distributions[label][feature_ind].get_proba(features[feature_ind]))
                 if likelihood > max_likelihood:
                     max_likelihood = likelihood
+                    max_probabilities = probabilities
                     predict = label
             y_pred.append(predict)
         return y_pred

@@ -72,26 +72,23 @@ class NaiveBayesClassifier:
         self.distributions = {}  # key: label, value: []
         # [i] - плотность распределения i-й фичи в X при условии, что класс = label, т.е. плотность распределения P(x_i | label))
         for label in self.unique_labels:
-            current_label_feature_matrix = train_feature_matrix[
-                np.array(train_labels == label)]  # выбираем те строки, для которых класс = label
+            current_label_feature_matrix = train_feature_matrix[np.array(train_labels == label)]
             self.class_probability[
                 label] = current_label_feature_matrix.size / train_feature_matrix.size
             self.distributions[label] = []
             for feature_ind in range(train_feature_matrix.shape[1]):
-                feature_column = current_label_feature_matrix.iloc[:,
-                                 feature_ind]  # выбираем фичу с номером feature_ind
+                feature_column = current_label_feature_matrix.iloc[:, feature_ind]
                 distribution = self.Distribution(feature_column,
                                                  self.mode)  # считаем плотность распределения P(x_feature_ind | label) с помощью gaussian_kde
                 self.distributions[label].append(distribution)
 
     def predict(self, test_feature_matrix):
         y_pred = []  # наши предсказания
-        for i, features in test_feature_matrix.iterrows():
+        for _, features in tqdm(test_feature_matrix.iterrows()):
             max_likelihood = -float('inf')
-            max_probabilities = []
+            predict = None
             for label in self.unique_labels:  # перебираем возможные варианты ответа, выбираем - максимально правдоподобный
-                likelihood = log(self.class_probability[
-                                     label])  # здесь - сумма логарифмов вероятностей для label
+                likelihood = log(self.class_probability[label])  # здесь - сумма логарифмов вероятностей для label
                 probabilities = [self.class_probability[label]]
                 for feature_ind in range(test_feature_matrix.shape[1]):
                     likelihood += log(self.distributions[label][feature_ind].get_proba(
@@ -100,7 +97,7 @@ class NaiveBayesClassifier:
                             self.distributions[label][feature_ind].distribution.keys() or \
                             self.distributions[label][feature_ind].get_proba(
                                 features[feature_ind]) == 0:
-                        likilihood = -float('inf')
+                        likelihood = -float('inf')
                         probabilities.append(-float('inf'))
                     else:
                         likelihood += log(
@@ -109,7 +106,6 @@ class NaiveBayesClassifier:
                             self.distributions[label][feature_ind].get_proba(features[feature_ind]))
                 if likelihood > max_likelihood:
                     max_likelihood = likelihood
-                    max_probabilities = probabilities
                     predict = label
             y_pred.append(predict)
         return y_pred
@@ -225,7 +221,7 @@ class MulticlassClassifier:
         return y_pred
 
     def _voting_of_classifiers(self, predictions, y_pred):
-        for i, y in predictions.iterrows():
+        for i, y in tqdm(predictions.iterrows()):
             classes = dict((y_i, 0) for y_i in self.classes)
             lead_y = 0
             for y_i in y:

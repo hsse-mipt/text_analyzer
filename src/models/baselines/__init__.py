@@ -45,6 +45,7 @@ class NaiveBayesClassifier:
                 return self.get_prob_from_gauss(self, value, self.mean, self.deviation)
             if self.mode == 'gaussian_kde':
                 return self.distribution.pdf(value)
+            print(value)
             return self.distribution[value]
 
         @staticmethod
@@ -92,7 +93,7 @@ class NaiveBayesClassifier:
                 probabilities = [self.class_probability[label]]
                 for feature_ind in range(test_feature_matrix.shape[1]):
                     likelihood += log(self.distributions[label][feature_ind].get_proba(
-                        float(features[feature_ind])))
+                        features[feature_ind]))
                     if self.mode == 'cat_features' and features[feature_ind] not in \
                             self.distributions[label][feature_ind].distribution.keys() or \
                             self.distributions[label][feature_ind].get_proba(

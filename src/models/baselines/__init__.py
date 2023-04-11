@@ -45,6 +45,8 @@ class NaiveBayesClassifier:
                 return self.get_prob_from_gauss(self, value, self.mean, self.deviation)
             if self.mode == 'gaussian_kde':
                 return self.distribution.pdf(value)
+            if value not in self.distribution.keys():
+                return 0
             return self.distribution[value]
 
         @staticmethod
@@ -89,20 +91,12 @@ class NaiveBayesClassifier:
             predict = None
             for label in self.unique_labels:  # перебираем возможные варианты ответа, выбираем - максимально правдоподобный
                 likelihood = log(self.class_probability[label])  # здесь - сумма логарифмов вероятностей для label
-                probabilities = [self.class_probability[label]]
                 for feature_ind in range(test_feature_matrix.shape[1]):
-                    likelihood += log(self.distributions[label][feature_ind].get_proba(
-                        float(features[feature_ind])))
-                    if self.mode == 'cat_features' and features[feature_ind] not in \
-                            self.distributions[label][feature_ind].distribution.keys() or \
-                            self.distributions[label][feature_ind].get_proba(
+                    if self.distributions[label][feature_ind].get_proba(
                                 features[feature_ind]) == 0:
                         likelihood = -float('inf')
-                        probabilities.append(-float('inf'))
                     else:
                         likelihood += log(
-                            self.distributions[label][feature_ind].get_proba(features[feature_ind]))
-                        probabilities.append(
                             self.distributions[label][feature_ind].get_proba(features[feature_ind]))
                 if likelihood > max_likelihood:
                     max_likelihood = likelihood

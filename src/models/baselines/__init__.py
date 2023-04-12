@@ -45,7 +45,8 @@ class NaiveBayesClassifier:
                 return self.get_prob_from_gauss(self, value, self.mean, self.deviation)
             if self.mode == 'gaussian_kde':
                 return self.distribution.pdf(value)
-            print(value)
+            if value not in self.distribution.keys():
+                return 0
             return self.distribution[value]
 
         @staticmethod
@@ -87,23 +88,15 @@ class NaiveBayesClassifier:
         y_pred = []  # наши предсказания
         for _, features in tqdm(test_feature_matrix.iterrows()):
             max_likelihood = -float('inf')
-            predict = None
+            predict = 0
             for label in self.unique_labels:  # перебираем возможные варианты ответа, выбираем - максимально правдоподобный
                 likelihood = log(self.class_probability[label])  # здесь - сумма логарифмов вероятностей для label
-                probabilities = [self.class_probability[label]]
                 for feature_ind in range(test_feature_matrix.shape[1]):
-                    likelihood += log(self.distributions[label][feature_ind].get_proba(
-                        features[feature_ind]))
-                    if self.mode == 'cat_features' and features[feature_ind] not in \
-                            self.distributions[label][feature_ind].distribution.keys() or \
-                            self.distributions[label][feature_ind].get_proba(
-                                features[feature_ind]) == 0:
+                    if self.distributions[label][feature_ind].get_proba(
+                            features[feature_ind]) == 0:
                         likelihood = -float('inf')
-                        probabilities.append(-float('inf'))
                     else:
                         likelihood += log(
-                            self.distributions[label][feature_ind].get_proba(features[feature_ind]))
-                        probabilities.append(
                             self.distributions[label][feature_ind].get_proba(features[feature_ind]))
                 if likelihood > max_likelihood:
                     max_likelihood = likelihood
@@ -177,7 +170,7 @@ class MulticlassClassifier:
             for i in range(len(self.classes)):
                 for j in range(i + 1, len(self.classes)):
                     self.sub_samples[cur_cls][0], self.sub_samples[cur_cls][1] = self.classes[i], \
-                    self.classes[j]
+                        self.classes[j]
                     data = MulticlassClassifier.take_subsample((self.classes[i], self.classes[j]),
                                                                train_data, target_name)
                     X_train, y_train = data.iloc[:, :-1], np.ravel(data.iloc[:, -1:])
@@ -222,7 +215,7 @@ class MulticlassClassifier:
         return y_pred
 
     def _voting_of_classifiers(self, predictions, y_pred):
-        for i, y in tqdm(predictions.iterrows()):
+        for i, y in predictions.iterrows():
             classes = dict((y_i, 0) for y_i in self.classes)
             lead_y = 0
             for y_i in y:

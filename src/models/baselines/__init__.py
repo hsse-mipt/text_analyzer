@@ -90,7 +90,8 @@ class NaiveBayesClassifier:
             max_likelihood = -float('inf')
             predict = 0
             for label in self.unique_labels:  # перебираем возможные варианты ответа, выбираем - максимально правдоподобный
-                likelihood = log(self.class_probability[label])  # здесь - сумма логарифмов вероятностей для label
+                likelihood = log(self.class_probability[
+                                     label])  # здесь - сумма логарифмов вероятностей для label
                 for feature_ind in range(test_feature_matrix.shape[1]):
                     if self.distributions[label][feature_ind].get_proba(
                             features[feature_ind]) == 0:
